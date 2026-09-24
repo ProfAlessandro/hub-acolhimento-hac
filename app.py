@@ -1,17 +1,24 @@
 import gradio as gr
-import whisper
+import speech_recognition as sr
 from deep_translator import MyMemoryTranslator
 from gtts import gTTS
+import os
 
-print("🧠 Carregando modelo Whisper de reconhecimento de voz local...")
-modelo_transcricao = whisper.load_model("tiny")
-print("🚀 Sistema Inicializado! O gravador interno está ativo.")
+print("🚀 Inicializando Sistema de Reconhecimento de Voz Ultraleve...")
+reconhecedor = sr.Recognizer()
 
 def app_tradutor_hibrido(texto_digitado, audio_gravado_direto):
+    # REGRA DE PRIORIDADE: Se o usuário gravou áudio, o sistema transcreve usando a API estável
     if audio_gravado_direto is not None:
-        print("🎙️ Priorizando áudio capturado diretamente pelo microfone...")
-        resultado_transcricao = modelo_transcricao.transcribe(audio_gravado_direto, language="pt")
-        texto_final_pt = resultado_transcricao["text"]
+        print("🎙️ Processando áudio capturado diretamente pelo microfone...")
+        try:
+            with sr.AudioFile(audio_gravado_direto) as fonte:
+                dados_audio = reconhecedor.record(fonte)
+                # Transcreve o áudio em português de forma extremamente leve na nuvem
+                texto_final_pt = reconhecedor.recognize_google(dados_audio, language="pt-BR")
+        except Exception as e:
+            print(f"Erro na transcrição: {e}")
+            texto_final_pt = "Não foi possível compreender o áudio. Tente falar novamente de forma clara."
     else:
         texto_final_pt = texto_digitado
 
@@ -91,5 +98,5 @@ with gr.Blocks(theme=gr.themes.Soft(), css=estilo_customizado) as app_universal:
         outputs=[entrada_texto, entrada_audio, saida_pt, saida_es, saida_audio]
     )
 
-# Configuração estável e obrigatória para servidores de nuvem permanente
+# Configuração obrigatória para servidores em nuvem permanente
 app_universal.launch(server_name="0.0.0.0", server_port=7860, inline=False)
