@@ -1,95 +1,82 @@
-import gradio as gr
+import streamlit as st
+import whisper
 from deep_translator import MyMemoryTranslator
 from gtts import gTTS
 import os
 
-print("🚀 Inicializando Hub de Acolhimento Inclusivo de Alta Performance...")
+# Configuração de Layout e Tema da Página
+st.set_page_config(page_title="HAC - Hub de Acolhimento", page_icon="🚀", layout="centered")
 
-def app_tradutor_hibrido(texto_digitado, audio_gravado_direto):
-    # REGRA DE PRIORIDADE: Se o usuário utilizou o microfone nativo
-    if audio_gravado_direto is not None:
-        print("🎙️ Processando áudio enviado pelo componente nativo...")
-        # No Gradio 6 com tipo padrão, o áudio retorna o caminho do arquivo temporário.
-        # Caso o servidor gratuito não consiga transcrever sem pacotes pesados de SO,
-        # o sistema instrui amigavelmente o uso da digitação para garantir 100% de uptime.
-        texto_final_pt = "Aviso de Acolhimento: Por favor, utilize a digitação na Opção A para tradução instantânea em tempo real na nuvem pública."
+# Inicialização da Inteligência Artificial em Cache de Memória
+@st.cache_resource
+def carregar_modelo_ia():
+    print("🧠 Carregando modelo Whisper em segundo plano...")
+    # O Streamlit Cloud possui 1GB de RAM, aguentando o modelo 'tiny' com folga!
+    return whisper.load_model("tiny")
+
+modelo_transcricao = carregar_modelo_ia()
+
+# TÍTULO E INTERFACE DO APLICATIVO
+st.title("🚀 Hub de Acolhimento e Comunicação - HAC")
+st.markdown("### Tradução Multiuso em Tempo Real para Acolhimento de Estudantes Latinos")
+
+# ÁREA DE ENTRADA DE DADOS (Opção A e Opção B)
+entrada_texto = st.text_area("Opção A: Digite em português:", placeholder="Escreva o aviso, recado ou conversa aqui...", height=100)
+
+# Componente nativo de microfone do Streamlit (Grava direto da tela sem apps externos)
+entrada_audio = st.audio_input("Opção B: Áudio (Clique no microfone abaixo para falar):")
+
+# BOTÕES DE AÇÃO DO SISTEMA
+col1, col2 = st.columns(2)
+with col1:
+    botao_traduzir = st.button("✨ Traduzir", type="primary", use_container_width=True)
+with col2:
+    botao_limpar = st.button("🧹 Limpar Dados", type="secondary", use_container_width=True)
+
+# LÓGICA DE PROCESSAMENTO (BACK-END EM PYTHON)
+if botao_traduzir:
+    texto_final_pt = ""
+    
+    # REGRA DE PRIORIDADE: Se houver gravação no microfone nativo
+    if entrada_audio is not None:
+        st.info("🎙️ Priorizando áudio capturado pelo microfone...")
+        # Salva o arquivo temporário enviado pelo navegador para o Whisper ler
+        with open("audio_temp.wav", "wb") as f:
+            f.write(entrada_audio.getbuffer())
+        
+        resultado_transcricao = modelo_transcricao.transcribe("audio_temp.wav", language="pt")
+        texto_final_pt = resultado_transcricao["text"]
     else:
-        texto_final_pt = texto_digitado
+        texto_final_pt = entrada_texto
 
+    # Validação de Segurança
     if not texto_final_pt or not texto_final_pt.strip():
-        return "Por favor, digite um texto para iniciar a tradução.", "Aguardando entrada...", None
+        st.warning("⚠️ Por favor, digite um texto ou grave seu áudio antes de clicar em Traduzir.")
+    else:
+        # Tradução instantânea em tempo real via MyMemory
+        texto_espanhol = MyMemoryTranslator(source='pt-BR', target='es-ES').translate(texto_final_pt)
+        
+        # Síntese de voz em espanhol por IA
+        IA_voz = gTTS(text=texto_espanhol, lang='es', slow=False)
+        nome_arquivo = "traducao_hac.mp3"
+        IA_voz.save(nome_arquivo)
+        
+        # EXIBIÇÃO DOS RESULTADOS NA TELA
+        st.success("✅ Processamento concluído com sucesso!")
+        
+        st.text_input("📝 Texto Identificado (Português):", value=texto_final_pt, disabled=True)
+        st.text_input("🔄 Tradução Automática (Espanhol):", value=texto_espanhol, disabled=True)
+        
+        st.markdown("##### 🔊 Pronúncia da IA (Espanhol Nativo):")
+        st.audio(nome_arquivo, format="audio/mp3", autoplay=True)
 
-    # Tradução instantânea em tempo real via MyMemory
-    texto_espanhol = MyMemoryTranslator(source='pt-BR', target='es-ES').translate(texto_final_pt)
-    
-    # Síntese de voz em espanhol
-    IA_voz = gTTS(text=texto_espanhol, lang='es', slow=False)
-    nome_arquivo = "traducao_hibrida.mp3"
-    IA_voz.save(nome_arquivo)
-    
-    return texto_final_pt, texto_espanhol, nome_arquivo
+# LÓGICA DO BOTÃO LIMPAR (Usa o recarregamento nativo do Streamlit)
+if botao_limpar:
+    st.rerun()
 
-def limpar_dados_sistema():
-    print("🧹 Limpando dados da tela para o próximo usuário...")
-    return "", None, "", "", None
-
-estilo_customizado = """
-#componente_audio button {
-    background-color: #ef4444 !important; /* Cor vermelha viva para gravação */
-    color: white !important;
-    border: none !important;
-    font-weight: bold !important;
-}
-#componente_audio button:hover {
-    background-color: #dc2626 !important;
-}
-#rodape_creditos {
-    text-align: center;
-    margin-top: 30px;
-    padding-top: 15px;
-    border-top: 1px solid #e5e7eb;
-}
-"""
-
-with gr.Blocks(theme=gr.themes.Soft(), css=estilo_customizado) as app_universal:
-    gr.Markdown("# Hub de Acolhimento e Comunicação  - HAC")
-    gr.Markdown("### ✨ Tradução Multiuso em Tempo Real para Acolhimento de Estudantes Latinos")
-    
-    with gr.Row():
-        with gr.Column():
-            entrada_texto = gr.Textbox(label="Opção A: Digite em português:", placeholder="Escreva o aviso, recado ou conversa aqui...", lines=4)
-            
-            entrada_audio = gr.Audio(
-                label="Opção B: Áudio de Referência (Clique no microfone abaixo):", 
-                sources=["microphone"], 
-                elem_id="componente_audio"
-            )
-            
-            with gr.Row():
-                botao_processar = gr.Button("Traduzir", variant="primary")
-                botao_limpar = gr.Button("Limpar Dados", variant="secondary")
-            
-        with gr.Column():
-            saida_pt = gr.Textbox(label="📝 Texto Identificado (Português):", interactive=False)
-            saida_es = gr.Textbox(label="🔄 Tradução Automática (Espanhol):", interactive=False)
-            saida_audio = gr.Audio(label="🔊 Pronúncia da IA (Espanhol Nativo):", type="filepath")
-            
-    gr.Markdown(
-        "🛠️ **Desenvolvido por: Professor Alessandro Ramos e Gemini** | _Projeto de Inclusão Tecnológica e Social com Inteligência Artificial e Python_",
-        elem_id="rodape_creditos"
-    )
-
-    botao_processar.click(
-        fn=app_tradutor_hibrido, 
-        inputs=[entrada_texto, entrada_audio], 
-        outputs=[saida_pt, saida_es, saida_audio]
-    )
-    
-    botao_limpar.click(
-        fn=limpar_dados_sistema,
-        inputs=[],
-        outputs=[entrada_texto, entrada_audio, saida_pt, saida_es, saida_audio]
-    )
-
-# Inicialização limpa mapeada para a porta padrão do Cloud/Render
-app_universal.launch(server_name="0.0.0.0", server_port=7860, inline=False)
+# RODAPÉ E CRÉDITOS DE DESENVOLVEDOR
+st.markdown("---")
+st.markdown(
+    "<p style='text-align: center;'>🛠️ <b>Desenvolvido por: Professor Alessandro Ramos e Gemini</b><br><i>Projeto de Inclusão Tecnológica e Social com Inteligência Artificial e Python</i></p>", 
+    unsafe_allow_html=True
+)
