@@ -1,6 +1,4 @@
 deep-translator
 gTTS
 gradio>=6.0.0
-SpeechRecognition
-pydub
 requests
