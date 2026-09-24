@@ -4,7 +4,7 @@ from deep_translator import MyMemoryTranslator
 from gtts import gTTS
 
 print("🧠 Carregando modelo Whisper de reconhecimento de voz local...")
-modelo_transcricao = whisper.load_model("base")
+modelo_transcricao = whisper.load_model("tiny")
 print("🚀 Sistema Inicializado! O gravador interno está ativo.")
 
 def app_tradutor_hibrido(texto_digitado, audio_gravado_direto):
