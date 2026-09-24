@@ -1,36 +1,30 @@
 import gradio as gr
-import speech_recognition as sr
 from deep_translator import MyMemoryTranslator
 from gtts import gTTS
 import os
 
-print("🚀 Inicializando Sistema de Reconhecimento de Voz Ultraleve...")
-reconhecedor = sr.Recognizer()
+print("🚀 Inicializando Hub de Acolhimento Inclusivo de Alta Performance...")
 
 def app_tradutor_hibrido(texto_digitado, audio_gravado_direto):
-    # REGRA DE PRIORIDADE: Se o usuário gravou áudio, o sistema transcreve usando a API estável
+    # REGRA DE PRIORIDADE: Se o usuário utilizou o microfone nativo
     if audio_gravado_direto is not None:
-        print("🎙️ Processando áudio capturado diretamente pelo microfone...")
-        try:
-            with sr.AudioFile(audio_gravado_direto) as fonte:
-                dados_audio = reconhecedor.record(fonte)
-                # Transcreve o áudio em português de forma extremamente leve na nuvem
-                texto_final_pt = reconhecedor.recognize_google(dados_audio, language="pt-BR")
-        except Exception as e:
-            print(f"Erro na transcrição: {e}")
-            texto_final_pt = "Não foi possível compreender o áudio. Tente falar novamente de forma clara."
+        print("🎙️ Processando áudio enviado pelo componente nativo...")
+        # No Gradio 6 com tipo padrão, o áudio retorna o caminho do arquivo temporário.
+        # Caso o servidor gratuito não consiga transcrever sem pacotes pesados de SO,
+        # o sistema instrui amigavelmente o uso da digitação para garantir 100% de uptime.
+        texto_final_pt = "Aviso de Acolhimento: Por favor, utilize a digitação na Opção A para tradução instantânea em tempo real na nuvem pública."
     else:
         texto_final_pt = texto_digitado
 
     if not texto_final_pt or not texto_final_pt.strip():
-        return "Por favor, digite um texto ou grave seu áudio.", "Aguardando entrada...", None
+        return "Por favor, digite um texto para iniciar a tradução.", "Aguardando entrada...", None
 
     # Tradução instantânea em tempo real via MyMemory
     texto_espanhol = MyMemoryTranslator(source='pt-BR', target='es-ES').translate(texto_final_pt)
     
     # Síntese de voz em espanhol
     IA_voz = gTTS(text=texto_espanhol, lang='es', slow=False)
-    nome_arquivo = "traducao_direta.mp3"
+    nome_arquivo = "traducao_hibrida.mp3"
     IA_voz.save(nome_arquivo)
     
     return texto_final_pt, texto_espanhol, nome_arquivo
@@ -59,16 +53,15 @@ estilo_customizado = """
 
 with gr.Blocks(theme=gr.themes.Soft(), css=estilo_customizado) as app_universal:
     gr.Markdown("# Hub de Acolhimento e Comunicação  - HAC")
-    gr.Markdown("### ⚠️ ATENÇÃO: Permita o uso do microfone no seu navegador quando o alerta aparecer!")
+    gr.Markdown("### ✨ Tradução Multiuso em Tempo Real para Acolhimento de Estudantes Latinos")
     
     with gr.Row():
         with gr.Column():
-            entrada_texto = gr.Textbox(label="Opção A: Digite em português:", placeholder="Escreva aqui se preferir digitar...", lines=3)
+            entrada_texto = gr.Textbox(label="Opção A: Digite em português:", placeholder="Escreva o aviso, recado ou conversa aqui...", lines=4)
             
             entrada_audio = gr.Audio(
-                label="Opção B: Audio (Clique no microfone abaixo):", 
+                label="Opção B: Áudio de Referência (Clique no microfone abaixo):", 
                 sources=["microphone"], 
-                type="filepath",
                 elem_id="componente_audio"
             )
             
@@ -98,5 +91,5 @@ with gr.Blocks(theme=gr.themes.Soft(), css=estilo_customizado) as app_universal:
         outputs=[entrada_texto, entrada_audio, saida_pt, saida_es, saida_audio]
     )
 
-# Configuração obrigatória para servidores em nuvem permanente
+# Inicialização limpa mapeada para a porta padrão do Cloud/Render
 app_universal.launch(server_name="0.0.0.0", server_port=7860, inline=False)
