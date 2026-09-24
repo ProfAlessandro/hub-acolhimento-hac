@@ -1,0 +1,5 @@
+deep-translator
+gTTS
+gradio>=6.0.0
+openai-whisper
+requests
